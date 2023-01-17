@@ -19,21 +19,20 @@ class RecursiveCNN(nn.Module):
         super(RecursiveCNN, self).__init__()
         self.device = (torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu"))
         
-        self.resnet_cnn = models.resnet18(weights=models.ResNet18_Weights.DEFAULT)
+        self.feature_extractor = models.vgg11(weights=models.VGG11_Weights.IMAGENET1K_V1)
 
-        #we get rid of the fully connected layer at the end of the architecture so we can put our decoder and LSTM instead
-        self.rnn = nn.LSTM(input_size=self.resnet_cnn.fc.out_features, hidden_size=512, num_layers=20)
-        #apply dropout to decrease the chance of overfitting
+        self.rnn = nn.LSTM(input_size=1000, hidden_size=512, num_layers=20)
+        
         self.final_fc = nn.Sequential(
-            nn.Dropout(0.1),
             nn.Linear(512, 50),
             nn.ReLU(inplace=True),
-            nn.Linear(50, num_classes))
+            nn.Linear(50, num_classes),
+            nn.Softmax(dim=1))
     def forward(self, x): #input should be a batch of videos of below shape
         b_z, length, colors, height, width = x.shape
         hidden_state = None
         for frame in range(length):#for every image in the video (all samples in the batch at once)
-            resnet_out = self.resnet_cnn((x[:,frame]))
-            lstm_out, hidden_state = self.rnn(resnet_out.unsqueeze(0), hidden_state) #rnn takes input of shape (sequence_length, batch_size, input_size)
+            cnn_out = self.feature_extractor((x[:,frame]))
+            lstm_out, hidden_state = self.rnn(cnn_out.unsqueeze(0), hidden_state) #rnn takes input of shape (sequence_length, batch_size, input_size)
         out = self.final_fc(lstm_out.squeeze(0))
-        return torch.round(out)
+        return out

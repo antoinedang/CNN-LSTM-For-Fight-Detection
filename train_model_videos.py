@@ -55,9 +55,16 @@ def getMetricInFilename(f):
 
 def roundToLabel(output):
     y_pred, y = output
+    for out in y_pred:
+        if out[1] < out[0]: 
+            out[0] = 1.0
+            out[1]= 0.0
+        else:
+            out[0] = 0.0
+            out[1]= 1.0
     return y_pred, y
 
-def launch(data_splits, batch_sizes, max_frames, device, profile, epochs, image_size, gradient_accumulation_steps, force_generate_dataset, continuous_training):
+def launch(data_splits, batch_sizes, max_frames, device, profile, epochs, image_size, gradient_accumulation_steps, force_generate_dataset, continuous_training, samples_per_label):
     print("starting on " + str(device))
     #load dataset from file system or from scratch
     try:
@@ -67,7 +74,7 @@ def launch(data_splits, batch_sizes, max_frames, device, profile, epochs, image_
     except Exception as e:
         print("generating dataset from scratch")
         #there are 1000 videos (500 per label) so stratified split is easy
-        split_per_label = [500*x for x in data_splits]
+        split_per_label = [samples_per_label*x for x in data_splits]
         train_ds = HockeyDataset(device, max_frames, image_size, 0, int(split_per_label[0]))
         test_ds = HockeyDataset(device, max_frames, image_size, int(split_per_label[0]), int(split_per_label[0]+split_per_label[1]))
         val_ds = HockeyDataset(device, max_frames, image_size, int(split_per_label[0]+split_per_label[1]), int(split_per_label[0]+split_per_label[1]+split_per_label[2]))
@@ -94,7 +101,7 @@ def launch(data_splits, batch_sizes, max_frames, device, profile, epochs, image_
                 print("continuing from: " + f)
     model.to(device)
     loss = nn.BCELoss()
-    optimizer = torch.optim.AdamW(model.parameters(), lr=0.0005)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=0.001)
     metrics = {'accuracy': Accuracy(device=device, output_transform=roundToLabel), 'recall': Recall(device=device), 'precision':Precision(device=device)}
 
     print("Starting training with " + str(len(train_ds)) + " out of 1000 samples.")
@@ -111,14 +118,15 @@ def launch(data_splits, batch_sizes, max_frames, device, profile, epochs, image_
     print("done!")
 
 if __name__ == '__main__':
-    data_splits = [0.6, 0.2, 0.2]
+    data_splits = [0.5, 0.3, 0.2]
     batch_sizes = [16, 16, 8]
     gradient_accumulation_steps = 1
     image_size = (224, 224)
+    samples_per_label = 10
     max_frames = 20 #no more than 20 frames
     device = (torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu"))
-    epochs = 50
+    epochs = 5
     profile = False
-    force_generate_dataset = False #when True re-generates the dataset object instead of loading from file system
+    force_generate_dataset = True #when True re-generates the dataset object instead of loading from file system
     continuous_training = False
-    launch(data_splits, batch_sizes, max_frames, device, profile, epochs, image_size, gradient_accumulation_steps, force_generate_dataset, continuous_training)
+    launch(data_splits, batch_sizes, max_frames, device, profile, epochs, image_size, gradient_accumulation_steps, force_generate_dataset, continuous_training, samples_per_label)
