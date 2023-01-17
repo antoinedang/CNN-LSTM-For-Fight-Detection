@@ -1,27 +1,15 @@
 from torchvision import models
 from torch import nn
-import json
 import torch
-import torch.nn.functional as F
-from torch.utils.data import Dataset, DataLoader
-import torch.nn.utils.rnn as rnn_utils
-import ignite
-from ignite.metrics import Accuracy, Recall, Precision
-from ignite.engine import create_supervised_trainer, create_supervised_evaluator
-from ignite.engine.events import Events
-from os import listdir
-from os.path import isfile, join
-import re
-import cv2
 
 class RecursiveCNN(nn.Module):
     def __init__(self, num_classes):
         super(RecursiveCNN, self).__init__()
         self.device = (torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu"))
         
-        self.feature_extractor = models.vgg11(weights=models.VGG11_Weights.IMAGENET1K_V1)
+        self.feature_extractor = models.mobilenet_v2(weights=MobileNet_V2_Weights.DEFAULT)
 
-        self.rnn = nn.LSTM(input_size=1000, hidden_size=512, num_layers=20)
+        self.rnn = nn.LSTM(input_size=1000, hidden_size=512, num_layers=3)
         
         self.final_fc = nn.Sequential(
             nn.Linear(512, 50),
