@@ -54,6 +54,7 @@ def getMetricInFilename(f):
     return metric_in_filename
 
 def roundToLabel(output):
+    print(str(output))
     y_pred, y = output
     for out in y_pred:
         if out[1] < out[0]: 
@@ -86,19 +87,19 @@ def launch(data_splits, batch_sizes, max_frames, device, profile, epochs, image_
     test_dl = DataLoader(test_ds, batch_size = batch_sizes[1], shuffle=True, collate_fn= custom_collate_fn, pin_memory=True)
     val_dl = DataLoader(val_ds, batch_size = batch_sizes[2], shuffle=True, collate_fn= custom_collate_fn, pin_memory=True)
     #load model
-    model = RecursiveCNN(train_ds.num_classes)
     if continuous_training:
         files = [f for f in listdir('models/') if isfile(join('models/', f))]
         noModels = False
         if len(files) == 0:
             print("No model file to continue training from.")
-            no_models = True
-        if not no_models:
-            best_model = max([getMetricInFilename(f) for f in files])
-            for f in files:
-                if best_model not in f: continue
-                model.load_state_dict(torch.load(f))    
-                print("continuing from: " + f)
+            exit()
+        best_model = max([getMetricInFilename(f) for f in files])
+        for f in files:
+            if best_model not in f: continue
+            model.load_state_dict(torch.load(f))    
+            print("continuing from: " + f)
+    else:
+        model = RecursiveCNN(train_ds.num_classes)
     model.to(device)
     loss = nn.BCELoss()
     optimizer = torch.optim.AdamW(model.parameters(), lr=0.001)
@@ -118,14 +119,14 @@ def launch(data_splits, batch_sizes, max_frames, device, profile, epochs, image_
     print("done!")
 
 if __name__ == '__main__':
-    data_splits = [0.5, 0.3, 0.2]
-    batch_sizes = [16, 16, 8]
+    data_splits = [0.7, 0.2, 0.1]
+    batch_sizes = [4, 4, 4]
     gradient_accumulation_steps = 1
     image_size = (224, 224)
-    samples_per_label = 10
-    max_frames = 20 #no more than 20 frames
+    samples_per_label = 500
+    max_frames = 90 #no more than 90 frames
     device = (torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu"))
-    epochs = 5
+    epochs = 50
     profile = False
     force_generate_dataset = True #when True re-generates the dataset object instead of loading from file system
     continuous_training = False
